@@ -129,6 +129,27 @@ func TestSetup(t *testing.T) {
 			},
 		},
 		{
+			"private option",
+			`wgsd example.com. wg0 {
+						self 127.0.0.1:51820 1.1.1.1/32 2.2.2.2/32
+						private
+					}`,
+			false,
+			Zones{
+				Z: map[string]*Zone{
+					"example.com.": {
+						name:           "example.com.",
+						device:         "wg0",
+						serveSelf:      true,
+						privateMode:    true,
+						selfEndpoint:   endpoint1,
+						selfAllowedIPs: []net.IPNet{*prefix1, *prefix2},
+					},
+				},
+				Names: []string{"example.com."},
+			},
+		},
+		{
 			"all options",
 			`wgsd example.com. wg0 {
 						self 127.0.0.1:51820 1.1.1.1/32 2.2.2.2/32
@@ -140,6 +161,7 @@ func TestSetup(t *testing.T) {
 						name:           "example.com.",
 						device:         "wg0",
 						serveSelf:      true,
+						privateMode:    false,
 						selfEndpoint:   endpoint1,
 						selfAllowedIPs: []net.IPNet{*prefix1, *prefix2},
 					},

@@ -39,8 +39,10 @@ type Zone struct {
 	name           string       // the name of the zone we are authoritative for
 	device         string       // the WireGuard device name, e.g. wg0
 	serveSelf      bool         // flag to enable serving data about self
+	privateMode    bool         // flag to enable private mode, only SRV, A and AAAA will work
 	selfEndpoint   *net.UDPAddr // overrides the self endpoint value
 	selfAllowedIPs []net.IPNet  // self allowed IPs
+
 }
 
 type wgctrlClient interface {
@@ -56,9 +58,9 @@ const (
 
 type handlerFn func(state request.Request, peers []wgtypes.Peer) (int, error)
 
-func getHandlerFn(queryType uint16, name string) handlerFn {
+func getHandlerFn(queryType uint16, name string, zone *Zone) handlerFn {
 	switch {
-	case name == spPrefix && queryType == dns.TypePTR:
+	case name == spPrefix && queryType == dns.TypePTR && zone.privateMode == false:
 		return handlePTR
 	case len(name) == serviceInstanceLen && queryType == dns.TypeSRV:
 		return handleSRV
@@ -220,7 +222,7 @@ func (p *WGSD) ServeDNS(ctx context.Context, w dns.ResponseWriter,
 	logger.Debugf("received query for: %s type: %s", name,
 		dns.TypeToString[queryType])
 
-	handler := getHandlerFn(queryType, name)
+	handler := getHandlerFn(queryType, name, zone)
 	if handler == nil {
 		return nxDomain(state)
 	}

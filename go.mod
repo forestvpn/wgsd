@@ -1,4 +1,4 @@
-module github.com/jwhited/wgsd
+module github.com/forestvpn/wgsd
 
 go 1.14
 

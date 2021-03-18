@@ -76,6 +76,8 @@ func parse(c *caddy.Controller) (Zones, error) {
 					}
 					zone.selfAllowedIPs = append(zone.selfAllowedIPs, *prefix)
 				}
+			case "private":
+				zone.privateMode = true
 			default:
 				return Zones{}, c.ArgErr()
 			}
