@@ -1,0 +1,94 @@
+kind: pipeline
+type: docker
+name: default
+
+volumes:
+  - name: cache
+    temp: { }
+  - name: dist
+    temp: { }
+
+environment:
+  GOCACHE: /go/go-build
+  GOMODCACHE: /go/go-download
+
+steps:
+  - name: deps
+    image: golang:1.16.2-alpine3.13
+    volumes:
+      - name: cache
+        path: /go
+    commands:
+      - apk --no-cache add git
+      - go get -t -d -v ./...
+      - go build all
+
+  - name: test
+    image: golang:1.16.2-alpine3.13
+    volumes:
+      - name: cache
+        path: /go
+    commands:
+      - apk --no-cache add build-base
+      - go test ./...
+    depends_on:
+      - deps
+
+  - name: build
+    image: golang:1.16.2-alpine3.13
+    volumes:
+      - name: cache
+        path: /go
+      - name: dist
+        path: /dist
+    environment:
+      VERSION: ${DRONE_TAG}
+    commands:
+      - apk --no-cache add build-base nfpm
+      - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /dist/wgsd_linux_x86_64 cmd/coredns/main.go
+      - ln -s /dist/wgsd_linux_x86_64 ./wgsd
+      - nfpm -f packaging/nfpm.yaml pkg --packager deb --target /dist/
+    when:
+      event:
+        - tag
+    depends_on:
+      - deps
+
+  - name: publish
+    image: plugins/github-release
+    volumes:
+      - name: dist
+        path: /dist
+    settings:
+      api_key:
+        from_secret: github_token
+      files: /dist/*
+      checksum:
+        - md5
+        - sha1
+    when:
+      event:
+        - tag
+    depends_on:
+      - build
+
+  - name: slack
+    image: plugins/slack
+    settings:
+      webhook:
+        from_secret: slack_webhook
+      channel: cicd
+      link_names: true
+      template: >
+        {{#success build.status}}
+          Good news everyone. The build {{build.number}} {{build.link}} is back to GREEN.
+          Good job. <@{{build.author}}>
+        {{else}}
+          I'm not saying that it failed, but... The build {{build.number}} {{build.link}} FAILED.
+          Fix me please. @{{build.author}}
+        {{/success}}
+    when:
+      status: [ success, failure ]
+    depends_on:
+      - test
+      - build
