@@ -46,6 +46,7 @@ steps:
     commands:
       - apk --no-cache add build-base nfpm
       - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /dist/wgsd_linux_x86_64 cmd/coredns/main.go
+      - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /dist/wgsd-client_linux_x86_64 cmd/wgsd-client/main.go
       - ln -s /dist/wgsd_linux_x86_64 ./wgsd
       - nfpm -f packaging/nfpm.yaml pkg --packager deb --target /dist/
     when:
